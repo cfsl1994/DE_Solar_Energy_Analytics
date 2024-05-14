@@ -1,0 +1,158 @@
+{
+    "name": "recipe_1_transform_cbs_dataflow",
+    "properties": {
+        "description": "recipe_1_transform_cbs_dataflow",
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "raw_cbs_sp_cap_nl_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "cbsspcapnlsource",
+                    "description": "cbsspcapnlsource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "raw_cbs_regions_nl_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "cbsregionsnlsource",
+                    "description": "cbsregionsnlsource"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "stage_cbs_data_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "cbsdataoutput",
+                    "description": "cbsdataoutput"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "RemoveInvalid",
+                    "description": "remove invalid"
+                },
+                {
+                    "name": "RemoveMissing",
+                    "description": "RemoveMissing"
+                },
+                {
+                    "name": "DeleteIDandRenameColumns",
+                    "description": "DeleteIDandRename"
+                },
+                {
+                    "name": "float1",
+                    "description": "Apply float to cbs_total_installations"
+                },
+                {
+                    "name": "float2",
+                    "description": "Apply float to cbs_kw_capacity"
+                },
+                {
+                    "name": "GroupByColumns",
+                    "description": "GroupByColumns"
+                },
+                {
+                    "name": "join1",
+                    "description": "Join1"
+                },
+                {
+                    "name": "SelectColumns",
+                    "description": "SelectColumns"
+                },
+                {
+                    "name": "DeleteJJ00",
+                    "description": "DeleteJJ00"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          ID as string,",
+                "          BedrijfstakkenWoningen as string,",
+                "          RegioS as string,",
+                "          Perioden as string,",
+                "          AantalInstallaties_1 as string,",
+                "          OpgesteldVermogenVanZonnepanelen_2 as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> cbsspcapnlsource",
+                "source(output(",
+                "          Gemeentecode as string,",
+                "          GemeentecodeGM as string,",
+                "          Gemeentenaam as string,",
+                "          Provinciecode as string,",
+                "          ProvinciecodePV as string,",
+                "          Provincienaam as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> cbsregionsnlsource",
+                "cbsspcapnlsource filter(AantalInstallaties_1 != ' .') ~> RemoveInvalid",
+                "RemoveInvalid filter(!isNull(AantalInstallaties_1)) ~> RemoveMissing",
+                "RemoveMissing select(mapColumn(",
+                "          BedrijfstakkenWoningen,",
+                "          cbs_region_code = RegioS,",
+                "          cbs_year = Perioden,",
+                "          cbs_total_installations = AantalInstallaties_1,",
+                "          cbs_kw_capacity = OpgesteldVermogenVanZonnepanelen_2",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> DeleteIDandRenameColumns",
+                "DeleteJJ00 cast(output(",
+                "          cbs_total_installations as float '000.##'",
+                "     ),",
+                "     errors: true) ~> float1",
+                "float1 cast(output(",
+                "          cbs_kw_capacity as float '000.##'",
+                "     ),",
+                "     errors: true) ~> float2",
+                "float2 aggregate(groupBy(cbs_region_code,",
+                "          cbs_year),",
+                "     cbs_kw_capacity_sum = sum(cbs_kw_capacity),",
+                "          cbs_total_installations_sum = sum(cbs_total_installations)) ~> GroupByColumns",
+                "GroupByColumns, cbsregionsnlsource join(cbs_region_code == GemeentecodeGM,",
+                "     joinType:'inner',",
+                "     matchType:'exact',",
+                "     ignoreSpaces: false,",
+                "     broadcast: 'auto')~> join1",
+                "join1 select(mapColumn(",
+                "          cbs_region_code,",
+                "          cbs_year,",
+                "          cbs_kw_capacity_sum,",
+                "          cbs_total_installations_sum,",
+                "          cbs_municipality = Gemeentenaam,",
+                "          cbs_code_province = ProvinciecodePV,",
+                "          cbs_province = Provincienaam",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> SelectColumns",
+                "DeleteIDandRenameColumns derive(cbs_year = substring(cbs_year, 1, 4)) ~> DeleteJJ00",
+                "SelectColumns sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     input(",
+                "          cbs_region_code as string,",
+                "          cbs_year as string,",
+                "          cbs_kw_capacity_sum as string,",
+                "          cbs_total_installations_sum as string,",
+                "          cbs_municipality as string,",
+                "          cbs_code_province as string,",
+                "          cbs_province as string",
+                "     ),",
+                "     partitionFileNames:['result_recipe1.csv'],",
+                "     truncate: true,",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     partitionBy('hash', 1)) ~> cbsdataoutput"
+            ]
+        }
+    }
+}
