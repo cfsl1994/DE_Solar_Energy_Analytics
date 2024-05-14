@@ -135,5 +135,8 @@
     - compression -> none
     - All default
 
+#### POWER BI
+    - The analysis of the data will be at your discretion.
+
 ## Architecture-Diagram
 ![Architecture-Diagram](DE_Solar_Energy_Analytics-AZURE.jpg)
