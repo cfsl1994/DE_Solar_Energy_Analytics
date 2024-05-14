@@ -1,0 +1,109 @@
+{
+    "name": "solar-energy-analytics-datapipeline",
+    "properties": {
+        "description": "solar-energy-analytics-datapipeline",
+        "activities": [
+            {
+                "name": "recipe1",
+                "type": "ExecuteDataFlow",
+                "state": "Inactive",
+                "onInactiveMarkAs": "Succeeded",
+                "dependsOn": [],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [
+                    {
+                        "name": "enviroment",
+                        "value": "default"
+                    }
+                ],
+                "typeProperties": {
+                    "dataflow": {
+                        "referenceName": "recipe_1_transform_cbs_dataflow",
+                        "type": "DataFlowReference"
+                    },
+                    "compute": {
+                        "coreCount": 8,
+                        "computeType": "General"
+                    },
+                    "traceLevel": "Fine"
+                }
+            },
+            {
+                "name": "recipe2",
+                "type": "ExecuteDataFlow",
+                "state": "Inactive",
+                "onInactiveMarkAs": "Succeeded",
+                "dependsOn": [
+                    {
+                        "activity": "recipe1",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataflow": {
+                        "referenceName": "recipe_2_transform_sp_dataflow",
+                        "type": "DataFlowReference"
+                    },
+                    "compute": {
+                        "coreCount": 8,
+                        "computeType": "General"
+                    },
+                    "traceLevel": "Fine"
+                }
+            },
+            {
+                "name": "recipe3",
+                "description": "recipe3",
+                "type": "ExecuteDataFlow",
+                "state": "Inactive",
+                "onInactiveMarkAs": "Succeeded",
+                "dependsOn": [
+                    {
+                        "activity": "recipe2",
+                        "dependencyConditions": [
+                            "Succeeded"
+                        ]
+                    }
+                ],
+                "policy": {
+                    "timeout": "0.12:00:00",
+                    "retry": 0,
+                    "retryIntervalInSeconds": 30,
+                    "secureOutput": false,
+                    "secureInput": false
+                },
+                "userProperties": [],
+                "typeProperties": {
+                    "dataflow": {
+                        "referenceName": "recipe_3_curate_sp_cbs_dataflow",
+                        "type": "DataFlowReference"
+                    },
+                    "compute": {
+                        "coreCount": 8,
+                        "computeType": "General"
+                    },
+                    "traceLevel": "Fine"
+                }
+            }
+        ],
+        "annotations": [],
+        "lastPublishTime": "2024-05-13T20:05:10Z"
+    },
+    "type": "Microsoft.DataFactory/factories/pipelines"
+}
