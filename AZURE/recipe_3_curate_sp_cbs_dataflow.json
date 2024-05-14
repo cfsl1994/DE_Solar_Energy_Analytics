@@ -1,0 +1,100 @@
+{
+    "name": "recipe_3_curate_sp_cbs_dataflow",
+    "properties": {
+        "description": "recipe_3_curate_sp_cbs_dataflow",
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "stage_cbs_data_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "cbsdatasource",
+                    "description": "cbsdatasource"
+                },
+                {
+                    "dataset": {
+                        "referenceName": "stage_sp_data_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "spdatasource",
+                    "description": "spdatasource"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "analytics_cbs_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "cbsdataoutput",
+                    "description": "cbsdataoutput"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "join1",
+                    "description": "join1"
+                },
+                {
+                    "name": "select1",
+                    "description": "select1"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          cbs_region_code as string,",
+                "          cbs_year as string,",
+                "          cbs_kw_capacity_sum as string,",
+                "          cbs_total_installations_sum as string,",
+                "          cbs_municipality as string,",
+                "          cbs_code_province as string,",
+                "          cbs_province as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> cbsdatasource",
+                "source(output(",
+                "          sp_region_code as string,",
+                "          sp_year as string,",
+                "          sp_kw_generated_sum as string,",
+                "          sp_installed_devices as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> spdatasource",
+                "cbsdatasource, spdatasource join(cbs_region_code == sp_region_code",
+                "     && cbs_year == sp_year,",
+                "     joinType:'inner',",
+                "     matchType:'exact',",
+                "     ignoreSpaces: false,",
+                "     broadcast: 'auto')~> join1",
+                "join1 select(mapColumn(",
+                "          cbs_kw_capacity_sum,",
+                "          cbs_total_installations_sum,",
+                "          cbs_municipality,",
+                "          cbs_code_province,",
+                "          cbs_province,",
+                "          sp_region_code,",
+                "          sp_year,",
+                "          sp_kw_generated_sum,",
+                "          sp_installed_devices",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> select1",
+                "select1 sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     format: 'parquet',",
+                "     partitionFileNames:['result_recipe3.parquet'],",
+                "     truncate: true,",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     partitionBy('hash', 1)) ~> cbsdataoutput"
+            ]
+        }
+    }
+}
