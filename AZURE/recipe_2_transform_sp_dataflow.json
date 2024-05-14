@@ -1,0 +1,100 @@
+{
+    "name": "recipe_2_transform_sp_dataflow",
+    "properties": {
+        "description": "recipe_2_transform_sp_dataflow",
+        "type": "MappingDataFlow",
+        "typeProperties": {
+            "sources": [
+                {
+                    "dataset": {
+                        "referenceName": "raw_sp_data_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "spdatasource",
+                    "description": "spdatasource"
+                }
+            ],
+            "sinks": [
+                {
+                    "dataset": {
+                        "referenceName": "stage_sp_data_dataset",
+                        "type": "DatasetReference"
+                    },
+                    "name": "spdataoutput"
+                }
+            ],
+            "transformations": [
+                {
+                    "name": "ExtractYear",
+                    "description": "ExtractYear"
+                },
+                {
+                    "name": "DeleteDate",
+                    "description": "DeleteDate"
+                },
+                {
+                    "name": "CastColumn",
+                    "description": "CastColumn"
+                },
+                {
+                    "name": "RenameColumn",
+                    "description": "RenameColumn"
+                },
+                {
+                    "name": "GroupColumns",
+                    "description": "GroupColumns"
+                }
+            ],
+            "scriptLines": [
+                "source(output(",
+                "          id_device as string,",
+                "          id_region as string,",
+                "          kw_generated as string,",
+                "          date as string",
+                "     ),",
+                "     allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     ignoreNoFilesFound: false) ~> spdatasource",
+                "spdatasource derive(date_extracted = year(toDate(date))) ~> ExtractYear",
+                "ExtractYear select(mapColumn(",
+                "          id_device,",
+                "          id_region,",
+                "          kw_generated,",
+                "          date_extracted",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> DeleteDate",
+                "DeleteDate derive(date_extracted = toString(date_extracted),",
+                "          kw_generated = toFloat(kw_generated)) ~> CastColumn",
+                "CastColumn select(mapColumn(",
+                "          id_device,",
+                "          sp_region_code = id_region,",
+                "          sp_kw_generated = kw_generated,",
+                "          sp_year = date_extracted",
+                "     ),",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true) ~> RenameColumn",
+                "RenameColumn aggregate(groupBy(sp_region_code,",
+                "          sp_year),",
+                "     sp_kw_generated_sum = sum(sp_kw_generated),",
+                "          sp_installed_devices = countDistinct(id_device)) ~> GroupColumns",
+                "GroupColumns sink(allowSchemaDrift: true,",
+                "     validateSchema: false,",
+                "     input(",
+                "          sp_region_code as string,",
+                "          sp_year as string,",
+                "          sp_kw_generated_sum as string,",
+                "          sp_installed_devices as string",
+                "     ),",
+                "     partitionFileNames:['result_recipe_2.csv'],",
+                "     truncate: true,",
+                "     umask: 0022,",
+                "     preCommands: [],",
+                "     postCommands: [],",
+                "     skipDuplicateMapInputs: true,",
+                "     skipDuplicateMapOutputs: true,",
+                "     partitionBy('hash', 1)) ~> spdataoutput"
+            ]
+        }
+    }
+}
